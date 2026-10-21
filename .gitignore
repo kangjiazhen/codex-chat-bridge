@@ -1,0 +1,23 @@
+# Dependencies (this project intentionally has none, but just in case)
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Captured request bodies may contain prompts and API keys
+capture/
+*.capture.json
+req-*.json
+
+# Logs
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# temp
+.git-commit-msg.tmp
+

@@ -1,0 +1,43 @@
+{
+  "name": "codex-chat-bridge",
+  "version": "0.1.0",
+  "description": "Run OpenAI Codex CLI against any OpenAI-compatible /v1/chat/completions backend by translating the Responses API.",
+  "keywords": [
+    "codex",
+    "codex-cli",
+    "openai",
+    "responses-api",
+    "chat-completions",
+    "proxy",
+    "bridge",
+    "ollama",
+    "vllm",
+    "litellm",
+    "one-api"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "codex-chat-bridge": "bin/codex-chat-bridge.mjs"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node bin/codex-chat-bridge.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kangjiazhen/codex-chat-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kangjiazhen/codex-chat-bridge/issues"
+  },
+  "homepage": "https://github.com/kangjiazhen/codex-chat-bridge#readme"
+}

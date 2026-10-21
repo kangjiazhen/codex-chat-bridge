@@ -1,0 +1,5 @@
+# Normalize line endings: source stays LF everywhere, Windows checkouts too.
+* text=auto eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
