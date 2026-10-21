@@ -1,5 +1,7 @@
 # codex-chat-bridge
 
+**English** | [简体中文](README.zh-CN.md)
+
 Run **OpenAI Codex CLI** against **any** OpenAI-compatible `/v1/chat/completions` backend — Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, one-api, or your own gateway.
 
 ```
