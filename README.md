@@ -10,6 +10,9 @@ Codex CLI  --(Responses API)-->  codex-chat-bridge  --(Chat Completions API)--> 
 
 Zero dependencies. Node ≥ 18. One file.
 
+Explicitly tested against **WorkBuddy2API** reverse-proxy gateways — see the
+[WorkBuddy2API section](#workbuddy2api-reverse-proxy--codex) below.
+
 ---
 
 ## The problem
@@ -68,6 +71,7 @@ Restart Codex, and it works.
 | Backend | Status |
 |---|---|
 | OpenAI-compatible gateways with `/v1/chat/completions` + SSE | ✅ |
+| **WorkBuddy2API reverse proxy** | ✅ see [below](#workbuddy2api-reverse-proxy--codex) |
 | Tool calling (multi-turn `tool_calls` ↔ `function_call` pairing) | ✅ |
 | Streaming reasoning (`reasoning_content` → `reasoning_summary_text.delta`) | ✅ |
 | `apply_patch`-style freeform `custom` tools | ✅ |
@@ -76,6 +80,88 @@ Restart Codex, and it works.
 | Non-streaming (`stream: false`) requests | ✅ |
 
 Anything that implements the Chat Completions API with SSE streaming should work. If it does not, please open an issue with the backend name.
+
+## WorkBuddy2API reverse proxy → Codex
+
+WorkBuddy2API turns a pool of
+WorkBuddy/CodeBuddy accounts into an OpenAI-compatible endpoint. It implements
+**only** `/v1/chat/completions` — `/v1/responses` returns `404`, so Codex cannot
+talk to it directly. This bridge is the missing piece, and it is the setup this
+project was originally built for.
+
+```
+Codex CLI  --(Responses)-->  codex-chat-bridge :7864  --(Chat)-->  WorkBuddy2API :7863  -->  account pool
+```
+
+### Setup
+
+1. Start the WorkBuddy2API gateway (it listens on `:7863` by default, panel at
+   `/panel/`). Verify it is healthy:
+
+   ```bash
+   curl http://127.0.0.1:7863/healthz
+   # {"healthy":8,"realm_servable":{"cn":true,"global":true},...}
+   ```
+
+2. Start the bridge, pointing at the gateway's `/v1` and reusing its API key:
+
+   ```bash
+   CCB_UPSTREAM=http://127.0.0.1:7863/v1 \
+   CCB_API_KEY=<the api_key from the gateway's config.json> \
+   CCB_CONVERSATION_ID=auto \
+   node bin/codex-chat-bridge.mjs --port 7864
+   ```
+
+3. Point Codex at the bridge in `~/.codex/config.toml`:
+
+   ```toml
+   model = "global:gpt-5.3-codex"
+   model_provider = "wb"
+
+   [model_providers.wb]
+   name = "workbuddy"
+   base_url = "http://127.0.0.1:7864/v1"
+   wire_api = "responses"
+   experimental_bearer_token = "<same api_key>"
+   request_max_retries = 2
+   stream_max_retries = 2
+   ```
+
+### Two settings that matter for WorkBuddy2API
+
+**`CCB_CONVERSATION_ID=auto` is not optional here.** The upstream (the
+international/`global` realm in particular) validates `X-Conversation-ID`,
+`X-Conversation-Request-ID` and `X-Conversation-Message-ID`. When any of them is
+missing it replies `HTTP 400 {"code":"11-128","msg":"request illegal"}`, and the
+gateway classifies that as an **account-level fault and disables the account** —
+so a handful of requests without a conversation id can take down the whole pool.
+`auto` derives the id from Codex's `prompt_cache_key`, which is stable per
+session, so the id is present from the very first request and prompt caching
+also lines up per conversation.
+
+**Set `CCB_MODEL_ALLOWLIST` to the models your account tier can actually use.**
+Some model ids are gated by account type and return
+`{"code":11158,"msg":"model [...] is not allowed for user type [...]"}`. The
+gateway treats that as an account fault too, so one blocked model can disable
+every account in the pool. The allowlist makes the bridge reject the request
+locally with `400 model_not_allowed` instead of forwarding it. Model availability
+is a property of your WorkBuddy account tier, not of the bridge.
+
+```bash
+CCB_MODEL_ALLOWLIST=global:gpt-5.3-codex,global:glm-5.3,global:deepseek-v4.1-flash \
+node bin/codex-chat-bridge.mjs --port 7864
+```
+
+Check `/status` on the gateway if requests suddenly start returning `503` with
+`no_healthy_account`; a pool can be re-enabled from the panel at `/panel/`.
+
+### Model metadata in Codex
+
+Codex prints `Model metadata not found` for model ids it does not ship a catalog
+entry for, and such ids show up in the picker without context-window info. To
+silence that, add entries to `~/.codex/models.json` — copy an existing entry and
+override `slug`, `display_name`, `context_window`, `max_context_window`, and
+`priority`, keeping its `model_messages` / `base_instructions` blocks intact.
 
 ## How it works
 

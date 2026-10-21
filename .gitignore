@@ -21,3 +21,6 @@ Thumbs.db
 # temp
 .git-commit-msg.tmp
 
+
+.commitmsg
+
